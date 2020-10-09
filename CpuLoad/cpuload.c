@@ -48,17 +48,20 @@ static void calc_rolling(cpuload_t *cl)
 	cl_Callout(cl);
 }
 
-/* cl_LogBusy() - logs some busy time
+/* cl_LogLoad() - advances measurement time, logs load as busy or idle
 */
-static void cl_LogBusy(cpuload_t *cl, u64_t t)
+static void cl_LogLoad(cpuload_t *cl, u64_t t, bool_t busy)
 {
-	CL_DEBUG(printf("cl_LogBusy(%u)\n", t & 0xffffffff))
+	CL_DEBUG(printf("cl_LogBusy(%u, %s)\n", t & 0xffffffff, (b ? "busy" : "idle")))
 	u64_t interval_left = cl->t_interval - cl->t_used;
 
 	while ( t >= interval_left )
 	{
 		cl->t_used += interval_left;
-		cl->t_busy += interval_left;
+		if (busy)
+		{
+			cl->t_busy += interval_left;
+		}
 		calc_rolling(cl);
 		t -= interval_left;
 		interval_left = cl->t_interval;
@@ -67,29 +70,10 @@ static void cl_LogBusy(cpuload_t *cl, u64_t t)
 	}
 
 	cl->t_used += t;
-	cl->t_busy += t;
-}
-
-/* cl_LogIdle() - logs some idle time
- *
- * Similar to cl_LogBusy(), but the after the first cal_rolling(), the busy time stays at zero.
-*/
-static void cl_LogIdle(cpuload_t *cl, u64_t t)
-{
-	CL_DEBUG(printf("cl_LogIdle(%u)\n", t & 0xffffffff))
-	u64_t interval_left = cl->t_interval - cl->t_used;
-
-	while ( t >= interval_left )
+	if (busy)
 	{
-		cl->t_used += interval_left;
-		calc_rolling(cl);
-		t -= interval_left;
-		interval_left = cl->t_interval;
-		cl->t_used = 0;
-		cl->t_busy = 0;
+		cl->t_busy += t;
 	}
-
-	cl->t_used += t;
 }
 
 /* cl_Init() - initialize the cpuload_t structure
@@ -146,13 +130,13 @@ void cl_IdleLoop(void)
 		cl_Disable();
 		t2 = cl_ReadTime();
 
-		cl_LogIdle(&cl, te);		/* Log calculation time as idle time */
+		cl_LogLoad(&cl, te, 0);		/* Log calculation time as idle time */
 
 		te = t2 - t1;				/* Time spent in application */
 
 		if ( te > cl.t_threshold )	/* Log measured time as idle or busy, depending on length */
-			cl_LogBusy(&cl, te);
+			cl_LogLoad(&cl, te, 1);
 		else
-			cl_LogIdle(&cl, te);
+			cl_LogLoad(&cl, te, 0);
 	}
 }
