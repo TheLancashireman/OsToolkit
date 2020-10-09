@@ -51,8 +51,8 @@ struct cpuload_s
 	u64_t t_window;					/* Length of a window, in ticks. = t_interval * CL_N_INTERVAL */
 	u64_t t_interval;				/* Length of an interval, in ticks */
 	u64_t t_threshold;				/* Boundary value for decision: busy or idle */
+	u64_t t_next;					/* Start of next interval */
 
-	u64_t t_used;					/* Amount of current interval accounted for. */
 	u64_t t_busy;					/* Amount of current interval that was busy */
 	u32_t rolling[CL_N_INTERVALS];	/* Percent busy in each interval */
 	u32_t rolling_sum;				/* Sum of the rolling array */
