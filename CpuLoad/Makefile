@@ -1,6 +1,7 @@
 # Makefile for cpuload linux test program
 #
 # Copyright David Haworth
+# Advanced testsuite implementation by knilch
 #
 # This file is part of Dave's OS toolkit.
 #
@@ -19,6 +20,17 @@
 
 cpuload-linux:		cpuload.o cpuload-linux.o
 
-.PHONY:	clean
+.PHONY:	clean test
 clean:
 	-rm cpuload-linux *.o
+
+test: cpuload-linux
+	FAIL=0; for i in 0 100 20 50 23 42 69 ; do \
+	    echo -n "testing $$i: "; \
+	    if ./$< $$i | diff -u - tests/test-$$i.expected ; then \
+	        echo PASSED ; \
+	    else \
+	        FAIL=1; echo FAILED ; \
+	    fi ; \
+	done ; exit $$FAIL
+
