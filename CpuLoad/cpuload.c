@@ -20,6 +20,9 @@
 */
 #include "cpuload.h"
 
+typedef int cl_bool_t;
+typedef enum { idle=0, busy=1 } cl_bi_t;	/* Only the enumerations are used. */
+
 /* calc_rolling() - calculate the interval average and rolling average
  *
  * This function is called whenever an interval gets filled up.
@@ -34,7 +37,7 @@
 static void calc_rolling(cpuload_t *cl)
 {
 	cl->rolling_sum -= cl->rolling[cl->rolling_i];
-	cl->rolling[cl->rolling_i] = (u32_t)((cl->t_busy * CL_SCALE) / cl->t_interval);
+	cl->rolling[cl->rolling_i] = (cl_u32_t)((cl->t_busy * CL_SCALE) / cl->t_interval);
 	cl->rolling_sum += cl->rolling[cl->rolling_i];
 	cl->rolling_i++;
 	if ( cl->rolling_i >= CL_N_INTERVALS )
@@ -48,17 +51,17 @@ static void calc_rolling(cpuload_t *cl)
 	cl_Callout(cl);
 }
 
-/* cl_LogLoad() - advances measurement time, logs load as busy or idle
+/* cl_LogTime() - advances measurement time, logs time as busy or idle
 */
-static void cl_LogLoad(cpuload_t *cl, u64_t t, bool_t busy)
+static void cl_LogTime(cpuload_t *cl, cl_u64_t t, cl_bool_t busy)
 {
-	CL_DEBUG(printf("cl_LogBusy(%u, %s)\n", t & 0xffffffff, (b ? "busy" : "idle")))
-	u64_t interval_left = cl->t_interval - cl->t_used;
+	CL_DEBUG(printf("cl_LogTime(%u, %s)\n", t & 0xffffffff, (busy ? "busy" : "idle")))
+	cl_u64_t interval_left = cl->t_interval - cl->t_used;
 
 	while ( t >= interval_left )
 	{
 		cl->t_used += interval_left;
-		if (busy)
+		if ( busy )
 		{
 			cl->t_busy += interval_left;
 		}
@@ -70,7 +73,7 @@ static void cl_LogLoad(cpuload_t *cl, u64_t t, bool_t busy)
 	}
 
 	cl->t_used += t;
-	if (busy)
+	if ( busy )
 	{
 		cl->t_busy += t;
 	}
@@ -81,9 +84,9 @@ static void cl_LogLoad(cpuload_t *cl, u64_t t, bool_t busy)
 */
 static void cl_Init(cpuload_t *cl)
 {
-	cl->t_window	= (u64_t)CL_INTERVAL * (u64_t)CL_N_INTERVALS;	/* Length of a window, in ticks. */
-	cl->t_interval	= (u64_t)CL_INTERVAL;							/* Length of an interval, in ticks */
-	cl->t_threshold	= (u64_t)CL_THRESHOLD;							/* Boundary value for decision: busy or idle */
+	cl->t_window	= (cl_u64_t)CL_INTERVAL * (cl_u64_t)CL_N_INTERVALS;	/* Length of a window, in ticks. */
+	cl->t_interval	= (cl_u64_t)CL_INTERVAL;							/* Length of an interval, in ticks */
+	cl->t_threshold	= (cl_u64_t)CL_THRESHOLD;							/* Boundary value for decision: busy or idle */
 
 	cl->t_used = 0;			/* Amount of current interval accounted for. */
 	cl->t_busy = 0;			/* Amount of current interval that was busy */
@@ -118,8 +121,8 @@ static void cl_Init(cpuload_t *cl)
 void cl_IdleLoop(void)
 {
 	cpuload_t cl;
-	u64_t t1, t2;	/* Time markers */
-	u64_t ti;		/* Start of idle period */
+	cl_u64_t t1, t2;	/* Time markers */
+	cl_u64_t ti;		/* Start of idle period */
 
 	cl_Init(&cl);
 
@@ -144,8 +147,8 @@ void cl_IdleLoop(void)
 			/* Busy from t1 to t2, but time from ti to t1 was idle.
 			 * Log the busy and idle intervals separately.
 			*/
-			cl_LogLoad(&cl, (t1 - ti), 0);
-			cl_LogLoad(&cl, (t2 - t1), 1);
+			cl_LogTime(&cl, (t1 - ti), idle);
+			cl_LogTime(&cl, (t2 - t1), busy);
 
 			/* Start a new idle interval
 			*/
@@ -156,7 +159,7 @@ void cl_IdleLoop(void)
 		{
 			/* Total time from ti to t2 was idle.
 			*/
-			cl_LogLoad(&cl, (ti-t2), 0);
+			cl_LogTime(&cl, (ti-t2), idle);
 
 			/* Start a new idle interval
 			*/
