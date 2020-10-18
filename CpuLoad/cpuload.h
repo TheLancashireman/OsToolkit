@@ -37,6 +37,7 @@
 #endif
 
 typedef unsigned int u32_t;
+typedef unsigned int bool_t;
 
 #if CL_BITS == 64
 typedef unsigned long u64_t;
