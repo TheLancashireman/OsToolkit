@@ -115,28 +115,34 @@ void cl_IdleLoop(void)
 	cpuload_t cl;
 	u64_t t1, t2;	/* Time markers */
 	u64_t te;		/* Elapsed time */
+	u64_t ti;		/* Start of idle period */
 
 	cl_Init(&cl);
 
 	cl_Disable();
-	t2 = cl_ReadTime();
+	ti = cl_ReadTime();
 
 	for (;;)
 	{
 		t1 = cl_ReadTime();
-		te = t1 - t2;				/* Time spent calculating. This is counted as "idle" */
 		cl_Enable();
 		cl_Barrier();
 		cl_Disable();
 		t2 = cl_ReadTime();
 
-		cl_LogLoad(&cl, te, 0);		/* Log calculation time as idle time */
-
 		te = t2 - t1;				/* Time spent in application */
 
 		if ( te > cl.t_threshold )	/* Log measured time as idle or busy, depending on length */
+		{
+			cl_LogLoad(&cl, (ti - t1), 0);
 			cl_LogLoad(&cl, te, 1);
+			ti = t2;
+		}
 		else
-			cl_LogLoad(&cl, te, 0);
+		if ( (ti - t2) >= cl.t_interval )
+		{
+			cl_LogLoad(&cl, (ti-t2), 0);
+			ti = t2;
+		}
 	}
 }
