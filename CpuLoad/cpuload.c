@@ -104,22 +104,29 @@ static void cl_Init(cpuload_t *cl)
  *
  * CPU load is defined as the percentage of time that is spent *not* executing this function
  * To achieve this, we use two times:
+ *		ti = start of an idle interval
  *		t1 = start of a potentially busy interval
- *		t2 = start of an idle interval. The calculation time is counted as idle.
- * t2-t1 is the length of the potentially busy interval. If the interval is short, it is counted as idle
- * t1-t2 is the length of the computation. This is always counted as idle.
+ *		t2 = end of a potentially busy interval
  *
+ * The time from ti to t1 (t1-ti) is always counted as idle.
+ * The time from t1 to t2 (t2-t1) may be busy or idle depending on how long.
+ * -> If shorter than the threshold it is counted as idle. If the idle time (t2-ti) is longer than an interval,
+ *    it is logged.
+ * -> If longer than the threshold, it is counted as busy and logged. But first, the preceding idle interval is logged.
+ * After logging some time (either idle/busy or just idle) ti is set to t2.
 */
 void cl_IdleLoop(void)
 {
 	cpuload_t cl;
 	u64_t t1, t2;	/* Time markers */
-	u64_t te;		/* Elapsed time */
 	u64_t ti;		/* Start of idle period */
 
 	cl_Init(&cl);
 
 	cl_Disable();
+
+	/* Start of first idle interval.
+	*/
 	ti = cl_ReadTime();
 
 	for (;;)
@@ -130,18 +137,29 @@ void cl_IdleLoop(void)
 		cl_Disable();
 		t2 = cl_ReadTime();
 
-		te = t2 - t1;				/* Time spent in application */
-
-		if ( te > cl.t_threshold )	/* Log measured time as idle or busy, depending on length */
+		/* Busy or idle?
+		*/
+		if ( (t2 - t1) > cl.t_threshold )
 		{
-			cl_LogLoad(&cl, (ti - t1), 0);
-			cl_LogLoad(&cl, te, 1);
+			/* Busy from t1 to t2, but time from ti to t1 was idle.
+			 * Log the busy and idle intervals separately.
+			*/
+			cl_LogLoad(&cl, (t1 - ti), 0);
+			cl_LogLoad(&cl, (t2 - t1), 1);
+
+			/* Start a new idle interval
+			*/
 			ti = t2;
 		}
 		else
 		if ( (ti - t2) >= cl.t_interval )
 		{
+			/* Total time from ti to t2 was idle.
+			*/
 			cl_LogLoad(&cl, (ti-t2), 0);
+
+			/* Start a new idle interval
+			*/
 			ti = t2;
 		}
 	}
