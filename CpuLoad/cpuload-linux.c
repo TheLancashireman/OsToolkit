@@ -25,11 +25,11 @@
 
 static int limit = (CL_N_INTERVALS * 3) + 1;	/* When to stop the test */
 static int load;								/* The required test load */
-static u64_t busy_time;							/* Busy time needed in one interval */
+static cl_u64_t busy_time;							/* Busy time needed in one interval */
 
 static int measure = 0;
 static int busy = 1;
-static u64_t current_timer;
+static cl_u64_t current_timer;
 
 int main(int argc, char **argv)
 {
@@ -104,7 +104,7 @@ void cl_Enable(void)
  * If the busy flag is clear, an idle time is added to the timer. This continues until the end of an interval.
  * At the end of the interval, the callout function sets the busy flag back to 1.
 */
-u64_t cl_ReadTime(void)
+cl_u64_t cl_ReadTime(void)
 {
 	if ( measure )
 	{
